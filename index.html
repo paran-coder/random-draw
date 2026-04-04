@@ -1228,11 +1228,15 @@
         const eventRef = db.ref('events').push();
         const eventId = eventRef.key;
 
-        await eventRef.set({
-          admin: { nickname, password },
-          quiz: { question, answer, options },
-          timer: { duration: selectedTimer, startedAt: firebase.database.ServerValue.TIMESTAMP }
-        });
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
+        await Promise.race([
+          eventRef.set({
+            admin: { nickname, password },
+            quiz: { question, answer, options },
+            timer: { duration: selectedTimer, startedAt: firebase.database.ServerValue.TIMESTAMP }
+          }),
+          timeout
+        ]);
 
         currentEventId = eventId;
 
@@ -1243,7 +1247,11 @@
         document.getElementById('create-form').style.display = 'none';
         document.getElementById('create-success').style.display = 'block';
       } catch (err) {
-        showToast('이벤트 생성에 실패했습니다. Firebase 설정을 확인하세요.');
+        if (err.message === 'timeout') {
+          showToast('서버 응답이 없습니다. 네트워크 연결을 확인하세요.');
+        } else {
+          showToast('이벤트 생성에 실패했습니다: ' + err.message);
+        }
         console.error(err);
       } finally {
         btn.disabled = false;
