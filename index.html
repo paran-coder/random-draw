@@ -1,0 +1,1558 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>랜덤드로우 - 퀴즈 추첨 이벤트</title>
+  <style>
+    /* ===== CSS Variables & Reset ===== */
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #111827;
+      --border: #334155;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --blue: #4a9eff;
+      --blue-bg: #1e3a5f;
+      --green: #10b981;
+      --yellow: #fbbf24;
+      --red: #ef4444;
+      --red-bg: #7f1d1d;
+      --red-light: #fca5a5;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .screen { display: none; min-height: 100vh; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* ===== Common Components ===== */
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 24px 16px;
+      width: 100%;
+    }
+
+    .container-wide {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0;
+      width: 100%;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .label {
+      color: var(--text-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"], input[type="password"], textarea {
+      width: 100%;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      border-color: var(--blue);
+    }
+
+    textarea { resize: vertical; min-height: 80px; }
+
+    .btn {
+      display: inline-block;
+      padding: 14px 28px;
+      border-radius: var(--radius);
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+      text-align: center;
+    }
+
+    .btn:hover { transform: translateY(-1px); opacity: 0.92; }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: var(--blue);
+      color: white;
+      width: 100%;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--red), #f59e0b);
+      color: white;
+      box-shadow: 0 4px 20px rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-sm {
+      padding: 8px 16px;
+      font-size: 13px;
+      border-radius: var(--radius-sm);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+
+    .btn-outline:hover { border-color: var(--text-secondary); }
+
+    .field { margin-bottom: 16px; }
+    .field-label {
+      color: var(--text-secondary);
+      font-size: 13px;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 24px;
+      color: var(--text-primary);
+      font-size: 14px;
+      z-index: 1000;
+      transition: transform 0.3s ease;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== Screen 1: Main ===== */
+    #screen-main {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #ballpit-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .main-overlay {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      pointer-events: none;
+    }
+
+    .main-overlay > * { pointer-events: auto; }
+
+    .main-title {
+      font-size: 48px;
+      font-weight: 800;
+      margin-bottom: 8px;
+      text-shadow: 0 2px 20px rgba(0,0,0,0.5);
+    }
+
+    .main-subtitle {
+      color: var(--text-secondary);
+      font-size: 18px;
+      margin-bottom: 40px;
+      line-height: 1.5;
+      text-shadow: 0 1px 10px rgba(0,0,0,0.5);
+    }
+
+    .main-btn {
+      background: linear-gradient(135deg, var(--blue), #6366f1);
+      color: white;
+      padding: 18px 48px;
+      font-size: 18px;
+      font-weight: 700;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 24px rgba(74, 158, 255, 0.3);
+    }
+
+    .main-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px rgba(74, 158, 255, 0.4);
+    }
+
+    /* ===== Screen 2: Create Event ===== */
+    .create-header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .create-header h1 { font-size: 24px; font-weight: 700; }
+    .create-header p { color: var(--text-secondary); font-size: 14px; margin-top: 4px; }
+
+    .option-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .option-row input { flex: 1; }
+
+    .option-row .radio-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .option-row .radio-wrap input[type="radio"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--green);
+    }
+
+    .remove-option {
+      background: none;
+      border: none;
+      color: var(--red);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      opacity: 0.6;
+    }
+
+    .remove-option:hover { opacity: 1; }
+
+    .timer-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .timer-option {
+      padding: 10px 18px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .timer-option:hover { border-color: var(--text-secondary); }
+
+    .timer-option.selected {
+      background: var(--blue-bg);
+      border-color: var(--blue);
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    /* ===== Created Success ===== */
+    .success-box {
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+    }
+
+    .url-box {
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      margin: 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .url-box .url-text {
+      flex: 1;
+      color: var(--blue);
+      font-size: 13px;
+      word-break: break-all;
+      text-align: left;
+    }
+
+    .copy-btn {
+      background: var(--blue);
+      color: white;
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* ===== Screen 3: Event (Participate) ===== */
+    .timer-circle {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      border: 3px solid var(--red);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--red);
+      background: var(--bg-secondary);
+    }
+
+    .timer-circle.expired {
+      border-color: var(--text-muted);
+      color: var(--text-muted);
+    }
+
+    .timer-label {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 12px;
+      margin-bottom: 20px;
+    }
+
+    .quiz-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    .quiz-card .quiz-label { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; margin-bottom: 8px; }
+    .quiz-card .quiz-question { color: var(--text-primary); font-size: 16px; font-weight: 600; line-height: 1.4; }
+
+    .answer-option {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      color: var(--text-primary);
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      margin-bottom: 8px;
+      transition: all 0.15s;
+    }
+
+    .answer-option:hover { border-color: var(--text-secondary); }
+
+    .answer-option.selected {
+      background: var(--blue-bg);
+      border-color: var(--blue);
+    }
+
+    .answer-option .radio-dot {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--blue);
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+
+    .answer-option.selected .radio-dot {
+      background: var(--blue);
+      box-shadow: inset 0 0 0 3px var(--blue-bg);
+    }
+
+    .answer-option.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .submitted-msg {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .submitted-msg .check { font-size: 48px; margin-bottom: 16px; }
+    .submitted-msg h2 { font-size: 22px; margin-bottom: 8px; }
+    .submitted-msg p { color: var(--text-secondary); }
+
+    /* ===== Screen 4: Admin ===== */
+    .admin-topbar {
+      background: var(--bg-secondary);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .admin-topbar-title { font-weight: 700; font-size: 15px; }
+
+    .admin-topbar-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .timer-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .timer-badge.running { background: #14532d; color: #86efac; }
+    .timer-badge.expired { background: var(--red-bg); color: var(--red-light); }
+
+    .admin-body {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .admin-main { flex: 1; padding: 24px; overflow-y: auto; }
+
+    .admin-sidebar {
+      width: 240px;
+      background: var(--bg-tertiary);
+      border-left: 1px solid var(--bg-secondary);
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .admin-sidebar h3 {
+      color: var(--yellow);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .draw-result-box {
+      background: var(--bg-secondary);
+      border: 2px dashed var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .draw-result-box .result-label { color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; }
+
+    .draw-result-box .result-name {
+      color: var(--yellow);
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      min-height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .draw-result-box .result-count { color: var(--text-secondary); font-size: 12px; margin-top: 8px; }
+
+    .draw-btn-wrap { text-align: center; margin-bottom: 24px; }
+
+    .stat-cards {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      flex: 1;
+      background: var(--bg-secondary);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat-card .stat-label { color: var(--text-secondary); font-size: 11px; text-transform: uppercase; }
+    .stat-card .stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+
+    .winner-item {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      transition: all 0.3s;
+    }
+
+    .winner-item.latest {
+      border: 1px solid var(--yellow);
+    }
+
+    .winner-num {
+      background: var(--yellow);
+      color: #000;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .winner-name { font-size: 13px; font-weight: 500; }
+    .winner-item.latest .winner-name { color: var(--yellow); font-weight: 600; }
+
+    .winner-total {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px solid var(--bg-secondary);
+      color: var(--text-muted);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    /* Admin Login */
+    .admin-login {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .admin-login-box {
+      background: var(--bg-secondary);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .admin-login-box h2 { text-align: center; margin-bottom: 24px; font-size: 20px; }
+
+    /* Slot animation */
+    @keyframes slotSpin {
+      0% { transform: translateY(-100%); opacity: 0; }
+      50% { transform: translateY(10%); opacity: 1; }
+      70% { transform: translateY(-5%); }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .slot-animate {
+      animation: slotSpin 0.8s ease-out;
+    }
+
+    @keyframes slotShuffle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .slot-shuffling {
+      animation: slotShuffle 0.1s ease infinite;
+    }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 768px) {
+      .admin-body { flex-direction: column; }
+      .admin-sidebar {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid var(--bg-secondary);
+      }
+      .stat-cards { flex-direction: column; }
+      .main-title { font-size: 32px; }
+      .main-emoji { font-size: 48px; }
+      .main-subtitle { font-size: 15px; }
+      .draw-result-box .result-name { font-size: 28px; }
+      .admin-topbar { flex-direction: column; gap: 8px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Screen 1: Main ===== -->
+  <div id="screen-main" class="screen">
+    <canvas id="ballpit-canvas"></canvas>
+    <div class="main-overlay">
+      <h1 class="main-title">랜덤드로우</h1>
+      <p class="main-subtitle">퀴즈를 만들고, 정답자 중에서<br>행운의 당첨자를 추첨하세요!</p>
+      <button class="main-btn" onclick="navigate('create')">이벤트 생성하기</button>
+    </div>
+  </div>
+
+  <!-- ===== Screen 2: Create Event ===== -->
+  <div id="screen-create" class="screen">
+    <div class="container fade-in">
+      <div class="create-header">
+        <h1>이벤트 생성</h1>
+        <p>퀴즈와 추첨 설정을 입력하세요</p>
+      </div>
+
+      <div id="create-form">
+        <!-- Admin Info -->
+        <div class="card">
+          <div class="label">관리자 정보</div>
+          <div class="field">
+            <label class="field-label">닉네임</label>
+            <input type="text" id="admin-nickname" placeholder="관리자 닉네임을 입력하세요">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label class="field-label">비밀번호</label>
+            <input type="password" id="admin-password" placeholder="비밀번호를 입력하세요">
+          </div>
+        </div>
+
+        <!-- Quiz -->
+        <div class="card">
+          <div class="label">퀴즈 설정</div>
+          <div class="field">
+            <label class="field-label">퀴즈 내용</label>
+            <textarea id="quiz-question" placeholder="퀴즈 질문을 입력하세요"></textarea>
+          </div>
+          <div class="field">
+            <label class="field-label">보기 항목 (정답을 선택하세요)</label>
+            <div id="options-list">
+              <div class="option-row">
+                <label class="radio-wrap"><input type="radio" name="correct-answer" value="0" checked> 정답</label>
+                <input type="text" placeholder="보기 1" class="option-input">
+                <button class="remove-option" onclick="removeOption(this)" title="삭제">&times;</button>
+              </div>
+              <div class="option-row">
+                <label class="radio-wrap"><input type="radio" name="correct-answer" value="1"> 정답</label>
+                <input type="text" placeholder="보기 2" class="option-input">
+                <button class="remove-option" onclick="removeOption(this)" title="삭제">&times;</button>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="addOption()" style="margin-top:8px;">+ 항목 추가</button>
+          </div>
+        </div>
+
+        <!-- Timer -->
+        <div class="card">
+          <div class="label">타이머 설정</div>
+          <div class="timer-options">
+            <div class="timer-option" data-minutes="1" onclick="selectTimer(this)">1분</div>
+            <div class="timer-option" data-minutes="5" onclick="selectTimer(this)">5분</div>
+            <div class="timer-option selected" data-minutes="15" onclick="selectTimer(this)">15분</div>
+            <div class="timer-option" data-minutes="30" onclick="selectTimer(this)">30분</div>
+            <div class="timer-option" data-minutes="45" onclick="selectTimer(this)">45분</div>
+            <div class="timer-option" data-minutes="60" onclick="selectTimer(this)">60분</div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="createEvent()" id="create-btn">생성하기</button>
+      </div>
+
+      <!-- Success (hidden by default) -->
+      <div id="create-success" style="display:none;" class="fade-in">
+        <div class="success-box">
+          <div style="font-size:48px; margin-bottom:16px;">🎉</div>
+          <h2 style="margin-bottom:4px;">이벤트가 생성되었습니다!</h2>
+          <p style="color:var(--text-secondary); font-size:14px; margin-bottom:20px;">아래 URL을 참여자들에게 공유하세요</p>
+
+          <div class="label" style="text-align:left;">참여자 URL</div>
+          <div class="url-box">
+            <span class="url-text" id="share-url"></span>
+            <button class="copy-btn" onclick="copyUrl('share-url')">복사</button>
+          </div>
+
+          <div class="label" style="text-align:left; margin-top:16px;">관리자 URL</div>
+          <div class="url-box">
+            <span class="url-text" id="admin-url"></span>
+            <button class="copy-btn" onclick="copyUrl('admin-url')">복사</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Screen 3: Event (Participate) ===== -->
+  <div id="screen-event" class="screen">
+    <div class="container fade-in">
+      <!-- Loading -->
+      <div id="event-loading" style="text-align:center; padding:60px 0;">
+        <div style="font-size:32px; margin-bottom:12px;">⏳</div>
+        <p style="color:var(--text-secondary);">이벤트를 불러오는 중...</p>
+      </div>
+
+      <!-- Not found -->
+      <div id="event-notfound" style="display:none; text-align:center; padding:60px 0;">
+        <div style="font-size:32px; margin-bottom:12px;">😕</div>
+        <h2>이벤트를 찾을 수 없습니다</h2>
+        <p style="color:var(--text-secondary); margin-top:8px;">URL을 확인해주세요</p>
+      </div>
+
+      <!-- Event form -->
+      <div id="event-form" style="display:none;">
+        <div id="event-timer-wrap" style="text-align:center; margin-bottom:20px;">
+          <div class="timer-circle" id="event-timer">--:--</div>
+          <div class="timer-label">남은 시간</div>
+        </div>
+
+        <div class="quiz-card">
+          <div class="quiz-label">퀴즈</div>
+          <div class="quiz-question" id="event-question"></div>
+        </div>
+
+        <div class="field">
+          <label class="field-label">닉네임</label>
+          <input type="text" id="participant-nickname" placeholder="닉네임을 입력하세요">
+        </div>
+
+        <div class="field">
+          <label class="field-label">정답 선택</label>
+          <div id="event-options"></div>
+        </div>
+
+        <button class="btn btn-primary" onclick="submitAnswer()" id="submit-btn">제출하기</button>
+      </div>
+
+      <!-- Submitted -->
+      <div id="event-submitted" style="display:none;">
+        <div class="submitted-msg">
+          <div class="check">✅</div>
+          <h2>제출 완료!</h2>
+          <p>답변이 제출되었습니다. 추첨 결과를 기다려주세요.</p>
+        </div>
+      </div>
+
+      <!-- Expired -->
+      <div id="event-expired" style="display:none; text-align:center; padding:60px 0;">
+        <div style="font-size:32px; margin-bottom:12px;">⏰</div>
+        <h2>제출 시간이 종료되었습니다</h2>
+        <p style="color:var(--text-secondary); margin-top:8px;">더 이상 답변을 제출할 수 없습니다</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Screen 4: Admin ===== -->
+  <div id="screen-admin" class="screen">
+    <!-- Login -->
+    <div id="admin-login-wrap" class="admin-login">
+      <div class="admin-login-box fade-in">
+        <h2>🔐 관리자 로그인</h2>
+        <div class="field">
+          <label class="field-label">닉네임</label>
+          <input type="text" id="admin-login-nickname" placeholder="관리자 닉네임">
+        </div>
+        <div class="field">
+          <label class="field-label">비밀번호</label>
+          <input type="password" id="admin-login-password" placeholder="비밀번호">
+        </div>
+        <button class="btn btn-primary" onclick="adminLogin()">로그인</button>
+        <p id="admin-login-error" style="color:var(--red); font-size:13px; text-align:center; margin-top:12px; display:none;"></p>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="admin-dashboard" style="display:none; flex-direction:column; height:100vh;">
+      <div class="admin-topbar">
+        <div class="admin-topbar-title">🎲 랜덤드로우 — 관리자</div>
+        <div class="admin-topbar-info">
+          <span>관리자: <span style="color:var(--blue);" id="admin-display-name"></span></span>
+          <span class="timer-badge expired" id="admin-timer-badge">로딩 중...</span>
+        </div>
+      </div>
+
+      <div class="admin-body">
+        <div class="admin-main">
+          <!-- Draw area -->
+          <div class="draw-result-box" id="draw-result-box">
+            <div class="result-label">🎉 추첨 결과</div>
+            <div class="result-name" id="draw-result-name">버튼을 눌러 추첨하세요</div>
+            <div class="result-count" id="draw-result-count"></div>
+          </div>
+
+          <div class="draw-btn-wrap">
+            <button class="btn btn-danger" onclick="drawWinner()" id="draw-btn" style="padding:16px 48px; font-size:18px; border-radius:14px;">
+              🎲 추첨하기
+            </button>
+          </div>
+
+          <!-- Stats -->
+          <div class="stat-cards">
+            <div class="stat-card">
+              <div class="stat-label">전체 참여자</div>
+              <div class="stat-value" id="stat-total" style="color:var(--text-primary);">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">정답자</div>
+              <div class="stat-value" id="stat-correct" style="color:var(--green);">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">남은 추첨 대상</div>
+              <div class="stat-value" id="stat-remaining" style="color:var(--yellow);">0</div>
+            </div>
+          </div>
+
+          <!-- Quiz info -->
+          <div class="card" style="margin-top:8px;">
+            <div class="label">퀴즈</div>
+            <div id="admin-quiz-question" style="font-size:14px; margin-top:4px;"></div>
+            <div id="admin-quiz-answer" style="color:var(--green); font-size:13px; margin-top:6px;"></div>
+          </div>
+        </div>
+
+        <!-- Winners sidebar -->
+        <div class="admin-sidebar">
+          <h3>🏆 당첨자 목록</h3>
+          <div id="winners-list"></div>
+          <div class="winner-total" id="winners-total">당첨자가 없습니다</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Three.js for Ballpit Background -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+    (function() {
+      // Apple-inspired vibrant color palette
+      var BALLPIT_COLORS = [
+        '#FF3B30', '#FF9500', '#FFCC00', '#34C759', '#00C7BE',
+        '#007AFF', '#5856D6', '#AF52DE', '#FF2D55', '#5AC8FA'
+      ];
+      var BALLPIT_COUNT = 80;
+      var BALLPIT_MIN = 0.4, BALLPIT_MAX = 1.1;
+      var BALLPIT_GRAVITY = 0.35, BALLPIT_FRICTION = 0.998;
+      var BALLPIT_BOUNCE = 0.95, BALLPIT_MAXVEL = 0.15;
+
+      function BallpitPhysics(count) {
+        this.count = count;
+        this.pos = new Float32Array(3 * count);
+        this.vel = new Float32Array(3 * count);
+        this.size = new Float32Array(count);
+        this.center = new THREE.Vector3();
+        this.maxX = 5; this.maxY = 5; this.maxZ = 2;
+        for (var i = 0; i < count; i++) {
+          var idx = 3 * i;
+          this.pos[idx] = THREE.MathUtils.randFloatSpread(2 * this.maxX);
+          this.pos[idx+1] = THREE.MathUtils.randFloatSpread(2 * this.maxY);
+          this.pos[idx+2] = THREE.MathUtils.randFloatSpread(2 * this.maxZ);
+          this.size[i] = THREE.MathUtils.randFloat(BALLPIT_MIN, BALLPIT_MAX);
+        }
+      }
+
+      BallpitPhysics.prototype.update = function(dt) {
+        var count = this.count, mX = this.maxX, mY = this.maxY, mZ = this.maxZ;
+        // Follower sphere (index 0)
+        var fp = new THREE.Vector3().fromArray(this.pos, 0);
+        fp.lerp(this.center, 0.1).toArray(this.pos, 0);
+        this.vel[0] = this.vel[1] = this.vel[2] = 0;
+
+        for (var i = 1; i < count; i++) {
+          var b = 3*i;
+          var px = this.pos[b], py = this.pos[b+1], pz = this.pos[b+2];
+          var vx = this.vel[b], vy = this.vel[b+1], vz = this.vel[b+2];
+          var r = this.size[i];
+
+          vy -= dt * BALLPIT_GRAVITY * r;
+          vx *= BALLPIT_FRICTION; vy *= BALLPIT_FRICTION; vz *= BALLPIT_FRICTION;
+          var spd = Math.sqrt(vx*vx + vy*vy + vz*vz);
+          if (spd > BALLPIT_MAXVEL) { var sc = BALLPIT_MAXVEL/spd; vx*=sc; vy*=sc; vz*=sc; }
+          px += vx; py += vy; pz += vz;
+
+          // Sphere-sphere (simplified — check nearby only for perf)
+          for (var j = i+1; j < count; j++) {
+            var ob = 3*j;
+            var dx = this.pos[ob]-px, dy = this.pos[ob+1]-py, dz = this.pos[ob+2]-pz;
+            var dist = Math.sqrt(dx*dx+dy*dy+dz*dz);
+            var sumR = r + this.size[j];
+            if (dist < sumR && dist > 0.001) {
+              var overlap = (sumR - dist) * 0.5;
+              var nx = dx/dist, ny = dy/dist, nz = dz/dist;
+              px -= nx*overlap; py -= ny*overlap; pz -= nz*overlap;
+              this.pos[ob] += nx*overlap; this.pos[ob+1] += ny*overlap; this.pos[ob+2] += nz*overlap;
+            }
+          }
+
+          // Follower push
+          var fx = this.pos[0]-px, fy = this.pos[1]-py, fz = this.pos[2]-pz;
+          var fd = Math.sqrt(fx*fx+fy*fy+fz*fz);
+          var fSumR = r + this.size[0];
+          if (fd < fSumR && fd > 0.001) {
+            var fo = (fSumR-fd); var fnx = fx/fd, fny = fy/fd, fnz = fz/fd;
+            px -= fnx*fo; py -= fny*fo; pz -= fnz*fo;
+            vx -= fnx*fo*0.2; vy -= fny*fo*0.2; vz -= fnz*fo*0.2;
+          }
+
+          // Walls
+          if (Math.abs(px)+r > mX) { px = Math.sign(px)*(mX-r); vx *= -BALLPIT_BOUNCE; }
+          if (py-r < -mY) { py = -mY+r; vy *= -BALLPIT_BOUNCE; }
+          if (Math.abs(pz)+r > mZ) { pz = Math.sign(pz)*(mZ-r); vz *= -BALLPIT_BOUNCE; }
+
+          this.pos[b]=px; this.pos[b+1]=py; this.pos[b+2]=pz;
+          this.vel[b]=vx; this.vel[b+1]=vy; this.vel[b+2]=vz;
+        }
+      };
+
+      window._initBallpit = function() {
+        var canvas = document.getElementById('ballpit-canvas');
+        var parent = document.getElementById('screen-main');
+        if (!canvas || !parent) return;
+
+        var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(35, 1, 0.1, 1000);
+        camera.position.z = 20;
+
+        var geometry = new THREE.SphereGeometry(1, 20, 20);
+        var material = new THREE.MeshStandardMaterial({
+          metalness: 0.3,
+          roughness: 0.35,
+        });
+
+        var count = BALLPIT_COUNT;
+        var imesh = new THREE.InstancedMesh(geometry, material, count);
+        scene.add(imesh);
+
+        // Lighting
+        scene.add(new THREE.AmbientLight('#ffffff', 1.0));
+        var pl1 = new THREE.PointLight('#007AFF', 150); pl1.position.set(5,5,8); scene.add(pl1);
+        var pl2 = new THREE.PointLight('#FF3B30', 100); pl2.position.set(-5,5,5); scene.add(pl2);
+        var pl3 = new THREE.PointLight('#FFCC00', 80); pl3.position.set(0,-5,6); scene.add(pl3);
+        var pl4 = new THREE.PointLight('#AF52DE', 60); pl4.position.set(5,-3,4); scene.add(pl4);
+
+        // Physics
+        var physics = new BallpitPhysics(count);
+
+        // Set colors
+        var threeColors = BALLPIT_COLORS.map(function(c) { return new THREE.Color(c); });
+        for (var i = 0; i < count; i++) {
+          imesh.setColorAt(i, threeColors[i % threeColors.length]);
+        }
+        imesh.instanceColor.needsUpdate = true;
+
+        // Pointer
+        var raycaster = new THREE.Raycaster();
+        var plane = new THREE.Plane(new THREE.Vector3(0,0,1), 0);
+        var intersection = new THREE.Vector3();
+        var pointer = new THREE.Vector2();
+        var onPointer = function(e) {
+          var x = e.touches ? e.touches[0].clientX : e.clientX;
+          var y = e.touches ? e.touches[0].clientY : e.clientY;
+          var rect = canvas.getBoundingClientRect();
+          pointer.x = ((x-rect.left)/rect.width)*2-1;
+          pointer.y = -((y-rect.top)/rect.height)*2+1;
+          raycaster.setFromCamera(pointer, camera);
+          raycaster.ray.intersectPlane(plane, intersection);
+          physics.center.copy(intersection);
+        };
+        window.addEventListener('mousemove', onPointer);
+        window.addEventListener('touchstart', onPointer);
+        window.addEventListener('touchmove', onPointer);
+
+        // Resize
+        var resize = function() {
+          var w = parent.offsetWidth || window.innerWidth || 1280;
+          var h = parent.offsetHeight || window.innerHeight || 800;
+          if (w < 1 || h < 1) { w = 1280; h = 800; }
+          renderer.setSize(w, h);
+          camera.aspect = w/h;
+          camera.updateProjectionMatrix();
+          var fovRad = (camera.fov*Math.PI)/180;
+          var wH = 2*Math.tan(fovRad/2)*camera.position.z;
+          physics.maxX = (wH*camera.aspect)/2;
+          physics.maxY = wH/2;
+        };
+        window._ballpitResize = resize;
+        var ro = new ResizeObserver(resize);
+        ro.observe(parent);
+        resize();
+
+        // Animate
+        var clock = new THREE.Clock();
+        var dummy = new THREE.Object3D();
+        var rafId;
+        var animate = function() {
+          var delta = clock.getDelta();
+          physics.update(Math.min(delta, 0.1));
+          for (var i = 0; i < count; i++) {
+            dummy.position.fromArray(physics.pos, i*3);
+            dummy.scale.setScalar(i === 0 ? 0 : physics.size[i]);
+            dummy.updateMatrix();
+            imesh.setMatrixAt(i, dummy.matrix);
+            if (i === 0) pl1.position.copy(dummy.position);
+          }
+          imesh.instanceMatrix.needsUpdate = true;
+          renderer.render(scene, camera);
+          rafId = requestAnimationFrame(animate);
+        };
+        animate();
+
+        window._ballpitCleanup = function() {
+          window.removeEventListener('mousemove', onPointer);
+          window.removeEventListener('touchstart', onPointer);
+          window.removeEventListener('touchmove', onPointer);
+          ro.disconnect();
+          cancelAnimationFrame(rafId);
+          renderer.dispose(); geometry.dispose(); material.dispose();
+        };
+      };
+
+      // Init when ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { window._initBallpit(); });
+      } else {
+        window._initBallpit();
+      }
+    })();
+  </script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    // ===== Firebase Config =====
+    // TODO: 아래 설정을 본인의 Firebase 프로젝트 정보로 교체하세요
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ===== State =====
+    let currentEventId = null;
+    let currentEventData = null;
+    let timerInterval = null;
+    let adminAuthenticated = false;
+    let winners = [];
+    let correctRespondents = [];
+
+    // ===== Router =====
+    function navigate(hash) {
+      window.location.hash = hash;
+    }
+
+    function handleRoute() {
+      const hash = window.location.hash.slice(1) || '';
+      const parts = hash.split('/');
+      const route = parts[0];
+      const id = parts[1];
+
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+
+      switch (route) {
+        case 'create':
+          document.getElementById('screen-create').classList.add('active');
+          resetCreateForm();
+          break;
+        case 'event':
+          document.getElementById('screen-event').classList.add('active');
+          if (id) loadEvent(id);
+          break;
+        case 'admin':
+          document.getElementById('screen-admin').classList.add('active');
+          if (id) {
+            currentEventId = id;
+            adminAuthenticated = false;
+            document.getElementById('admin-login-wrap').style.display = 'flex';
+            document.getElementById('admin-dashboard').style.display = 'none';
+          }
+          break;
+        default:
+          document.getElementById('screen-main').classList.add('active');
+          // Trigger ballpit resize after screen becomes visible
+          if (window._ballpitResize) setTimeout(window._ballpitResize, 50);
+      }
+    }
+
+    window.addEventListener('hashchange', handleRoute);
+    window.addEventListener('load', handleRoute);
+
+    // ===== Toast =====
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // ===== Create Event =====
+    let selectedTimer = 15;
+
+    function selectTimer(el) {
+      document.querySelectorAll('.timer-option').forEach(t => t.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedTimer = parseInt(el.dataset.minutes);
+    }
+
+    function addOption() {
+      const list = document.getElementById('options-list');
+      const index = list.children.length;
+      const row = document.createElement('div');
+      row.className = 'option-row';
+      row.innerHTML = `
+        <label class="radio-wrap"><input type="radio" name="correct-answer" value="${index}"> 정답</label>
+        <input type="text" placeholder="보기 ${index + 1}" class="option-input">
+        <button class="remove-option" onclick="removeOption(this)" title="삭제">&times;</button>
+      `;
+      list.appendChild(row);
+    }
+
+    function removeOption(btn) {
+      const list = document.getElementById('options-list');
+      if (list.children.length <= 2) {
+        showToast('최소 2개의 보기가 필요합니다');
+        return;
+      }
+      btn.closest('.option-row').remove();
+      // Re-index radio values
+      list.querySelectorAll('.option-row').forEach((row, i) => {
+        row.querySelector('input[type="radio"]').value = i;
+      });
+    }
+
+    function resetCreateForm() {
+      document.getElementById('create-form').style.display = 'block';
+      document.getElementById('create-success').style.display = 'none';
+      document.getElementById('admin-nickname').value = '';
+      document.getElementById('admin-password').value = '';
+      document.getElementById('quiz-question').value = '';
+      const list = document.getElementById('options-list');
+      list.innerHTML = `
+        <div class="option-row">
+          <label class="radio-wrap"><input type="radio" name="correct-answer" value="0" checked> 정답</label>
+          <input type="text" placeholder="보기 1" class="option-input">
+          <button class="remove-option" onclick="removeOption(this)" title="삭제">&times;</button>
+        </div>
+        <div class="option-row">
+          <label class="radio-wrap"><input type="radio" name="correct-answer" value="1"> 정답</label>
+          <input type="text" placeholder="보기 2" class="option-input">
+          <button class="remove-option" onclick="removeOption(this)" title="삭제">&times;</button>
+        </div>
+      `;
+      selectedTimer = 15;
+      document.querySelectorAll('.timer-option').forEach(t => {
+        t.classList.toggle('selected', t.dataset.minutes === '15');
+      });
+    }
+
+    async function createEvent() {
+      const nickname = document.getElementById('admin-nickname').value.trim();
+      const password = document.getElementById('admin-password').value.trim();
+      const question = document.getElementById('quiz-question').value.trim();
+
+      if (!nickname || !password) { showToast('관리자 닉네임과 비밀번호를 입력하세요'); return; }
+      if (!question) { showToast('퀴즈 내용을 입력하세요'); return; }
+
+      const optionInputs = document.querySelectorAll('.option-input');
+      const options = [];
+      let hasEmpty = false;
+      optionInputs.forEach(input => {
+        const val = input.value.trim();
+        if (!val) hasEmpty = true;
+        options.push(val);
+      });
+
+      if (hasEmpty) { showToast('모든 보기 항목을 입력하세요'); return; }
+
+      const correctIndex = parseInt(document.querySelector('input[name="correct-answer"]:checked').value);
+      const answer = options[correctIndex];
+
+      const btn = document.getElementById('create-btn');
+      btn.disabled = true;
+      btn.textContent = '생성 중...';
+
+      try {
+        const eventRef = db.ref('events').push();
+        const eventId = eventRef.key;
+
+        await eventRef.set({
+          admin: { nickname, password },
+          quiz: { question, answer, options },
+          timer: { duration: selectedTimer, startedAt: firebase.database.ServerValue.TIMESTAMP }
+        });
+
+        currentEventId = eventId;
+
+        const baseUrl = window.location.origin + window.location.pathname;
+        document.getElementById('share-url').textContent = baseUrl + '#event/' + eventId;
+        document.getElementById('admin-url').textContent = baseUrl + '#admin/' + eventId;
+
+        document.getElementById('create-form').style.display = 'none';
+        document.getElementById('create-success').style.display = 'block';
+      } catch (err) {
+        showToast('이벤트 생성에 실패했습니다. Firebase 설정을 확인하세요.');
+        console.error(err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '생성하기';
+      }
+    }
+
+    function copyUrl(elementId) {
+      const text = document.getElementById(elementId).textContent;
+      navigator.clipboard.writeText(text).then(() => showToast('URL이 복사되었습니다!'));
+    }
+
+    // ===== Event (Participate) =====
+    function loadEvent(eventId) {
+      currentEventId = eventId;
+
+      document.getElementById('event-loading').style.display = 'block';
+      document.getElementById('event-notfound').style.display = 'none';
+      document.getElementById('event-form').style.display = 'none';
+      document.getElementById('event-submitted').style.display = 'none';
+      document.getElementById('event-expired').style.display = 'none';
+
+      db.ref('events/' + eventId).once('value', snapshot => {
+        const data = snapshot.val();
+        document.getElementById('event-loading').style.display = 'none';
+
+        if (!data) {
+          document.getElementById('event-notfound').style.display = 'block';
+          return;
+        }
+
+        currentEventData = data;
+
+        // Check if already expired
+        const endTime = data.timer.startedAt + data.timer.duration * 60 * 1000;
+        if (Date.now() >= endTime) {
+          document.getElementById('event-expired').style.display = 'block';
+          return;
+        }
+
+        // Show form
+        document.getElementById('event-form').style.display = 'block';
+        document.getElementById('event-question').textContent = data.quiz.question;
+
+        // Render options
+        const optionsContainer = document.getElementById('event-options');
+        optionsContainer.innerHTML = '';
+        data.quiz.options.forEach((opt, i) => {
+          const div = document.createElement('div');
+          div.className = 'answer-option';
+          div.dataset.index = i;
+          div.dataset.value = opt;
+          div.innerHTML = `<div class="radio-dot"></div><span>${escapeHtml(opt)}</span>`;
+          div.addEventListener('click', () => selectAnswer(div));
+          optionsContainer.appendChild(div);
+        });
+
+        // Start timer
+        startEventTimer(endTime);
+      });
+    }
+
+    let selectedAnswer = null;
+
+    function selectAnswer(el) {
+      if (el.classList.contains('disabled')) return;
+      document.querySelectorAll('.answer-option').forEach(o => o.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedAnswer = el.dataset.value;
+    }
+
+    function startEventTimer(endTime) {
+      const timerEl = document.getElementById('event-timer');
+
+      function update() {
+        const remaining = endTime - Date.now();
+        if (remaining <= 0) {
+          timerEl.textContent = '00:00';
+          timerEl.classList.add('expired');
+          clearInterval(timerInterval);
+          // Disable form
+          document.getElementById('submit-btn').disabled = true;
+          document.querySelectorAll('.answer-option').forEach(o => o.classList.add('disabled'));
+          showToast('제출 시간이 종료되었습니다');
+          return;
+        }
+
+        const minutes = Math.floor(remaining / 60000);
+        const seconds = Math.floor((remaining % 60000) / 1000);
+        timerEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      }
+
+      update();
+      timerInterval = setInterval(update, 1000);
+    }
+
+    async function submitAnswer() {
+      const nickname = document.getElementById('participant-nickname').value.trim();
+      if (!nickname) { showToast('닉네임을 입력하세요'); return; }
+      if (!selectedAnswer) { showToast('정답을 선택하세요'); return; }
+
+      // Check timer
+      const endTime = currentEventData.timer.startedAt + currentEventData.timer.duration * 60 * 1000;
+      if (Date.now() >= endTime) {
+        showToast('제출 시간이 종료되었습니다');
+        return;
+      }
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = '제출 중...';
+
+      try {
+        // Check duplicate nickname
+        const snapshot = await db.ref('events/' + currentEventId + '/responses')
+          .orderByChild('nickname').equalTo(nickname).once('value');
+
+        if (snapshot.exists()) {
+          showToast('이미 제출된 닉네임입니다');
+          btn.disabled = false;
+          btn.textContent = '제출하기';
+          return;
+        }
+
+        await db.ref('events/' + currentEventId + '/responses').push({
+          nickname,
+          answer: selectedAnswer,
+          submittedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        document.getElementById('event-form').style.display = 'none';
+        document.getElementById('event-submitted').style.display = 'block';
+        if (timerInterval) clearInterval(timerInterval);
+      } catch (err) {
+        showToast('제출에 실패했습니다. 다시 시도해주세요.');
+        console.error(err);
+        btn.disabled = false;
+        btn.textContent = '제출하기';
+      }
+    }
+
+    // ===== Admin =====
+    async function adminLogin() {
+      const nickname = document.getElementById('admin-login-nickname').value.trim();
+      const password = document.getElementById('admin-login-password').value.trim();
+      const errorEl = document.getElementById('admin-login-error');
+
+      if (!nickname || !password) {
+        errorEl.textContent = '닉네임과 비밀번호를 입력하세요';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      try {
+        const snapshot = await db.ref('events/' + currentEventId + '/admin').once('value');
+        const admin = snapshot.val();
+
+        if (!admin || admin.nickname !== nickname || admin.password !== password) {
+          errorEl.textContent = '닉네임 또는 비밀번호가 일치하지 않습니다';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        adminAuthenticated = true;
+        document.getElementById('admin-login-wrap').style.display = 'none';
+        document.getElementById('admin-dashboard').style.display = 'flex';
+        document.getElementById('admin-display-name').textContent = nickname;
+
+        loadAdminData();
+      } catch (err) {
+        errorEl.textContent = 'Firebase 연결에 실패했습니다';
+        errorEl.style.display = 'block';
+        console.error(err);
+      }
+    }
+
+    function loadAdminData() {
+      const eventRef = db.ref('events/' + currentEventId);
+
+      // Load event data and listen for changes
+      eventRef.on('value', snapshot => {
+        const data = snapshot.val();
+        if (!data) return;
+
+        currentEventData = data;
+
+        // Quiz info
+        document.getElementById('admin-quiz-question').textContent = data.quiz.question;
+        document.getElementById('admin-quiz-answer').textContent = '정답: ' + data.quiz.answer;
+
+        // Timer badge
+        const endTime = data.timer.startedAt + data.timer.duration * 60 * 1000;
+        const badge = document.getElementById('admin-timer-badge');
+
+        function updateAdminTimer() {
+          const remaining = endTime - Date.now();
+          if (remaining <= 0) {
+            badge.textContent = '타이머 종료';
+            badge.className = 'timer-badge expired';
+            if (timerInterval) clearInterval(timerInterval);
+          } else {
+            const min = Math.floor(remaining / 60000);
+            const sec = Math.floor((remaining % 60000) / 1000);
+            badge.textContent = `⏱ ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+            badge.className = 'timer-badge running';
+          }
+        }
+
+        if (timerInterval) clearInterval(timerInterval);
+        updateAdminTimer();
+        timerInterval = setInterval(updateAdminTimer, 1000);
+
+        // Responses
+        const responses = data.responses ? Object.values(data.responses) : [];
+        const total = responses.length;
+        correctRespondents = responses.filter(r => r.answer === data.quiz.answer).map(r => r.nickname);
+
+        // Winners
+        winners = data.winners ? Object.values(data.winners).map(w => w.nickname) : [];
+
+        const remaining = correctRespondents.filter(n => !winners.includes(n));
+
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-correct').textContent = correctRespondents.length;
+        document.getElementById('stat-remaining').textContent = remaining.length;
+
+        // Draw button state
+        document.getElementById('draw-btn').disabled = remaining.length === 0;
+
+        // Render winners
+        renderWinners();
+      });
+    }
+
+    function renderWinners() {
+      const list = document.getElementById('winners-list');
+      list.innerHTML = '';
+
+      winners.forEach((name, i) => {
+        const div = document.createElement('div');
+        div.className = 'winner-item' + (i === winners.length - 1 ? ' latest' : '');
+        div.innerHTML = `
+          <div class="winner-num">${i + 1}</div>
+          <div class="winner-name">${escapeHtml(name)}${i === winners.length - 1 ? ' ✨' : ''}</div>
+        `;
+        list.appendChild(div);
+      });
+
+      document.getElementById('winners-total').textContent =
+        winners.length > 0 ? `총 ${winners.length}명 당첨` : '당첨자가 없습니다';
+    }
+
+    async function drawWinner() {
+      const remaining = correctRespondents.filter(n => !winners.includes(n));
+      if (remaining.length === 0) {
+        showToast('추첨할 정답자가 없습니다');
+        return;
+      }
+
+      const btn = document.getElementById('draw-btn');
+      btn.disabled = true;
+
+      const resultNameEl = document.getElementById('draw-result-name');
+      const resultCountEl = document.getElementById('draw-result-count');
+
+      // Slot machine animation
+      resultNameEl.classList.remove('slot-animate');
+      resultNameEl.classList.add('slot-shuffling');
+
+      let shuffleCount = 0;
+      const shuffleInterval = setInterval(() => {
+        const randomName = remaining[Math.floor(Math.random() * remaining.length)];
+        resultNameEl.textContent = randomName;
+        shuffleCount++;
+      }, 80);
+
+      // After animation, pick winner
+      setTimeout(async () => {
+        clearInterval(shuffleInterval);
+        resultNameEl.classList.remove('slot-shuffling');
+
+        const winnerIndex = Math.floor(Math.random() * remaining.length);
+        const winner = remaining[winnerIndex];
+
+        resultNameEl.textContent = winner;
+        resultNameEl.classList.add('slot-animate');
+        resultCountEl.textContent = `${winners.length + 1}번째 당첨자`;
+
+        // Save to Firebase
+        try {
+          await db.ref('events/' + currentEventId + '/winners').push({
+            nickname: winner,
+            drawnAt: firebase.database.ServerValue.TIMESTAMP
+          });
+        } catch (err) {
+          showToast('저장에 실패했습니다');
+          console.error(err);
+        }
+
+        btn.disabled = false;
+      }, 1500);
+    }
+
+    // ===== Utilities =====
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
