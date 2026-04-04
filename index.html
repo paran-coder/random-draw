@@ -689,7 +689,7 @@
           </div>
         </div>
 
-        <button class="btn btn-primary" onclick="createEvent()" id="create-btn">생성하기</button>
+        <button class="btn btn-primary" onclick="handleCreateEvent()" id="create-btn">생성하기</button>
       </div>
 
       <!-- Success (hidden by default) -->
@@ -1198,7 +1198,7 @@
       });
     }
 
-    async function createEvent() {
+    async function handleCreateEvent() {
       const nickname = document.getElementById('admin-nickname').value.trim();
       const password = document.getElementById('admin-password').value.trim();
       const question = document.getElementById('quiz-question').value.trim();
