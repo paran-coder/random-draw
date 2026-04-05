@@ -255,6 +255,25 @@
 
     .main-btn:active { transform: scale(0.97); }
 
+    /* ===== Back Button ===== */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      padding: 8px 0;
+      margin-bottom: 8px;
+      transition: opacity 0.15s;
+    }
+    .back-btn:hover { opacity: 0.7; }
+    .back-btn::before { content: '\2039'; font-size: 22px; line-height: 1; }
+
     /* ===== Screen 2: Create Event ===== */
     .create-header {
       text-align: center;
@@ -663,13 +682,19 @@
         width: 100%;
         border-left: none;
         border-top: 1px solid var(--border);
+        padding: 20px 16px;
       }
-      .stat-cards { flex-direction: column; }
+      .admin-main { padding: 16px; }
+      .stat-cards { flex-direction: row; }
+      .stat-card { padding: 12px 8px; }
+      .stat-card .stat-value { font-size: 22px; }
+      .stat-card .stat-label { font-size: 11px; }
       .main-title { font-size: 40px; }
       .main-emoji { font-size: 48px; }
       .main-subtitle { font-size: 16px; }
-      .draw-result-box .result-name { font-size: 28px; }
-      .admin-topbar { flex-direction: column; gap: 8px; text-align: center; }
+      .draw-result-box { padding: 24px 16px; border-radius: 16px; }
+      .draw-result-box .result-name { font-size: 24px; }
+      .admin-topbar { flex-direction: column; gap: 8px; text-align: center; padding: 12px 16px; }
       .container { padding: 24px 16px; }
     }
   </style>
@@ -689,6 +714,7 @@
   <!-- ===== Screen 2: Create Event ===== -->
   <div id="screen-create" class="screen">
     <div class="container fade-in">
+      <button class="back-btn" onclick="navigate('')">홈으로</button>
       <div class="create-header">
         <h1>이벤트 생성</h1>
         <p>퀴즈와 추첨 설정을 입력하세요</p>
@@ -775,10 +801,19 @@
   <!-- ===== Screen 3: Event (Participate) ===== -->
   <div id="screen-event" class="screen">
     <div class="container fade-in">
+      <button class="back-btn" onclick="navigate('')">홈으로</button>
       <!-- Loading -->
       <div id="event-loading" style="text-align:center; padding:60px 0;">
         <div style="font-size:32px; margin-bottom:12px;">⏳</div>
         <p style="color:var(--text-secondary);">이벤트를 불러오는 중...</p>
+      </div>
+
+      <!-- Waiting for timer start -->
+      <div id="event-waiting" style="display:none; text-align:center; padding:60px 0;">
+        <div style="font-size:32px; margin-bottom:12px;">⏳</div>
+        <h2>이벤트 준비 중</h2>
+        <p style="color:var(--text-secondary); margin-top:8px;">관리자가 타이머를 시작하면 퀴즈가 열립니다</p>
+        <p style="color:var(--text-muted); font-size:13px; margin-top:16px;">잠시만 기다려주세요...</p>
       </div>
 
       <!-- Not found -->
@@ -793,6 +828,7 @@
         <div id="event-timer-wrap" style="text-align:center; margin-bottom:20px;">
           <div class="timer-circle" id="event-timer">--:--</div>
           <div class="timer-label">남은 시간</div>
+          <div id="participant-count" style="text-align:center; color:var(--text-secondary); font-size:13px; margin-bottom:12px;"></div>
         </div>
 
         <div class="quiz-card">
@@ -819,6 +855,11 @@
           <div class="check">✅</div>
           <h2>제출 완료!</h2>
           <p>답변이 제출되었습니다. 추첨 결과를 기다려주세요.</p>
+          <div id="event-result-area" style="margin-top:24px; display:none;">
+            <div style="border-top:1px solid var(--border); padding-top:20px;">
+              <div id="event-result-msg" style="font-size:18px; font-weight:700;"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -869,10 +910,23 @@
             <div class="result-count" id="draw-result-count"></div>
           </div>
 
-          <div class="draw-btn-wrap">
+          <div class="draw-btn-wrap" id="timer-start-wrap" style="display:none;">
+            <button class="btn btn-primary" onclick="startTimer()" id="start-timer-btn" style="padding:16px 48px; font-size:18px; border-radius:14px;">
+              ▶ 타이머 시작
+            </button>
+            <p style="color:var(--text-secondary); font-size:13px; margin-top:10px;">참여자들에게 URL을 공유한 후 시작하세요</p>
+          </div>
+
+          <div class="draw-btn-wrap" style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;">
             <button class="btn btn-danger" onclick="drawWinner()" id="draw-btn" style="padding:16px 48px; font-size:18px; border-radius:14px;">
               🎲 추첨하기
             </button>
+            <select id="draw-count" style="background:var(--bg-glass); border:1px solid var(--border); border-radius:100px; color:var(--text-primary); padding:10px 16px; font-size:14px; font-family:inherit; cursor:pointer;">
+              <option value="1">1명</option>
+              <option value="3">3명</option>
+              <option value="5">5명</option>
+              <option value="10">10명</option>
+            </select>
           </div>
 
           <!-- Stats -->
@@ -904,6 +958,7 @@
           <h3>🏆 당첨자 목록</h3>
           <div id="winners-list"></div>
           <div class="winner-total" id="winners-total">당첨자가 없습니다</div>
+          <button class="btn btn-sm btn-outline" id="undo-draw-btn" onclick="undoLastDraw()" style="width:100%; margin-top:12px; display:none;">마지막 추첨 취소</button>
         </div>
       </div>
     </div>
@@ -1285,12 +1340,13 @@
         const eventRef = db.ref('events').push();
         const eventId = eventRef.key;
 
+        const hashedPw = await hashPassword(password);
         const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000));
         await Promise.race([
           eventRef.set({
-            admin: { nickname, password },
+            admin: { nickname, password: hashedPw },
             quiz: { question, answer, options },
-            timer: { duration: selectedTimer, startedAt: firebase.database.ServerValue.TIMESTAMP }
+            timer: { duration: selectedTimer, started: false }
           }),
           timeout
         ]);
@@ -1326,6 +1382,7 @@
       currentEventId = eventId;
 
       document.getElementById('event-loading').style.display = 'block';
+      document.getElementById('event-waiting').style.display = 'none';
       document.getElementById('event-notfound').style.display = 'none';
       document.getElementById('event-form').style.display = 'none';
       document.getElementById('event-submitted').style.display = 'none';
@@ -1342,32 +1399,62 @@
 
         currentEventData = data;
 
-        // Check if already expired
-        const endTime = data.timer.startedAt + data.timer.duration * 60 * 1000;
-        if (Date.now() >= endTime) {
-          document.getElementById('event-expired').style.display = 'block';
+        // Check if timer has been started
+        if (!data.timer.started) {
+          document.getElementById('event-waiting').style.display = 'block';
+          // Listen for timer start
+          db.ref('events/' + eventId + '/timer').on('value', timerSnap => {
+            const timer = timerSnap.val();
+            if (timer && timer.started && timer.startedAt) {
+              db.ref('events/' + eventId + '/timer').off();
+              document.getElementById('event-waiting').style.display = 'none';
+              currentEventData.timer = timer;
+              showEventForm(data, timer);
+            }
+          });
           return;
         }
 
-        // Show form
-        document.getElementById('event-form').style.display = 'block';
-        document.getElementById('event-question').textContent = data.quiz.question;
+        showEventForm(data, data.timer);
+      });
+    }
 
-        // Render options
-        const optionsContainer = document.getElementById('event-options');
-        optionsContainer.innerHTML = '';
-        data.quiz.options.forEach((opt, i) => {
-          const div = document.createElement('div');
-          div.className = 'answer-option';
-          div.dataset.index = i;
-          div.dataset.value = opt;
-          div.innerHTML = `<div class="radio-dot"></div><span>${escapeHtml(opt)}</span>`;
-          div.addEventListener('click', () => selectAnswer(div));
-          optionsContainer.appendChild(div);
-        });
+    function showEventForm(data, timer) {
+      // Check if already submitted
+      const savedNickname = localStorage.getItem('submitted_' + currentEventId);
+      if (savedNickname) {
+        document.getElementById('event-submitted').style.display = 'block';
+        watchDrawResults(savedNickname);
+        return;
+      }
 
-        // Start timer
-        startEventTimer(endTime);
+      const endTime = timer.startedAt + timer.duration * 60 * 1000;
+      if (Date.now() >= endTime) {
+        document.getElementById('event-expired').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('event-form').style.display = 'block';
+      document.getElementById('event-question').textContent = data.quiz.question;
+
+      const optionsContainer = document.getElementById('event-options');
+      optionsContainer.innerHTML = '';
+      data.quiz.options.forEach((opt, i) => {
+        const div = document.createElement('div');
+        div.className = 'answer-option';
+        div.dataset.index = i;
+        div.dataset.value = opt;
+        div.innerHTML = `<div class="radio-dot"></div><span>${escapeHtml(opt)}</span>`;
+        div.addEventListener('click', () => selectAnswer(div));
+        optionsContainer.appendChild(div);
+      });
+
+      startEventTimer(endTime);
+
+      // Live participant count
+      db.ref('events/' + currentEventId + '/responses').on('value', snap => {
+        const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+        document.getElementById('participant-count').textContent = `현재 ${count}명 참여`;
       });
     }
 
@@ -1411,6 +1498,10 @@
       if (!selectedAnswer) { showToast('정답을 선택하세요'); return; }
 
       // Check timer
+      if (!currentEventData.timer.started || !currentEventData.timer.startedAt) {
+        showToast('아직 타이머가 시작되지 않았습니다');
+        return;
+      }
       const endTime = currentEventData.timer.startedAt + currentEventData.timer.duration * 60 * 1000;
       if (Date.now() >= endTime) {
         showToast('제출 시간이 종료되었습니다');
@@ -1442,12 +1533,36 @@
         document.getElementById('event-form').style.display = 'none';
         document.getElementById('event-submitted').style.display = 'block';
         if (timerInterval) clearInterval(timerInterval);
+
+        // Save to localStorage
+        localStorage.setItem('submitted_' + currentEventId, nickname);
+
+        // Watch for draw results
+        watchDrawResults(nickname);
       } catch (err) {
         showToast('제출에 실패했습니다. 다시 시도해주세요.');
         console.error(err);
         btn.disabled = false;
         btn.textContent = '제출하기';
       }
+    }
+
+    function watchDrawResults(nickname) {
+      db.ref('events/' + currentEventId + '/winners').on('value', snap => {
+        const resultArea = document.getElementById('event-result-area');
+        const resultMsg = document.getElementById('event-result-msg');
+        const data = snap.val();
+        if (!data) return;
+
+        const winnerNames = Object.values(data).map(w => w.nickname);
+        resultArea.style.display = 'block';
+
+        if (winnerNames.includes(nickname)) {
+          resultMsg.innerHTML = '🎉 <span style="color:var(--orange);">축하합니다! 당첨되었습니다!</span>';
+        } else {
+          resultMsg.innerHTML = `추첨 진행 중... (현재 ${winnerNames.length}명 당첨)`;
+        }
+      });
     }
 
     // ===== Admin =====
@@ -1465,8 +1580,9 @@
       try {
         const snapshot = await db.ref('events/' + currentEventId + '/admin').once('value');
         const admin = snapshot.val();
+        const hashedPw = await hashPassword(password);
 
-        if (!admin || admin.nickname !== nickname || admin.password !== password) {
+        if (!admin || admin.nickname !== nickname || admin.password !== hashedPw) {
           errorEl.textContent = '닉네임 또는 비밀번호가 일치하지 않습니다';
           errorEl.style.display = 'block';
           return;
@@ -1500,26 +1616,36 @@
         document.getElementById('admin-quiz-answer').textContent = '정답: ' + data.quiz.answer;
 
         // Timer badge
-        const endTime = data.timer.startedAt + data.timer.duration * 60 * 1000;
         const badge = document.getElementById('admin-timer-badge');
+        const timerStartWrap = document.getElementById('timer-start-wrap');
 
-        function updateAdminTimer() {
-          const remaining = endTime - Date.now();
-          if (remaining <= 0) {
-            badge.textContent = '타이머 종료';
-            badge.className = 'timer-badge expired';
-            if (timerInterval) clearInterval(timerInterval);
-          } else {
-            const min = Math.floor(remaining / 60000);
-            const sec = Math.floor((remaining % 60000) / 1000);
-            badge.textContent = `⏱ ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-            badge.className = 'timer-badge running';
+        if (!data.timer.started || !data.timer.startedAt) {
+          badge.textContent = '대기 중';
+          badge.className = 'timer-badge expired';
+          timerStartWrap.style.display = 'block';
+          if (timerInterval) clearInterval(timerInterval);
+        } else {
+          timerStartWrap.style.display = 'none';
+          const endTime = data.timer.startedAt + data.timer.duration * 60 * 1000;
+
+          function updateAdminTimer() {
+            const remaining = endTime - Date.now();
+            if (remaining <= 0) {
+              badge.textContent = '타이머 종료';
+              badge.className = 'timer-badge expired';
+              if (timerInterval) clearInterval(timerInterval);
+            } else {
+              const min = Math.floor(remaining / 60000);
+              const sec = Math.floor((remaining % 60000) / 1000);
+              badge.textContent = `⏱ ${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+              badge.className = 'timer-badge running';
+            }
           }
-        }
 
-        if (timerInterval) clearInterval(timerInterval);
-        updateAdminTimer();
-        timerInterval = setInterval(updateAdminTimer, 1000);
+          if (timerInterval) clearInterval(timerInterval);
+          updateAdminTimer();
+          timerInterval = setInterval(updateAdminTimer, 1000);
+        }
 
         // Responses
         const responses = data.responses ? Object.values(data.responses) : [];
@@ -1527,7 +1653,14 @@
         correctRespondents = responses.filter(r => r.answer === data.quiz.answer).map(r => r.nickname);
 
         // Winners
-        winners = data.winners ? Object.values(data.winners).map(w => w.nickname) : [];
+        if (data.winners) {
+          const entries = Object.entries(data.winners);
+          winnerKeys = entries.map(([k]) => k);
+          winners = entries.map(([, v]) => v.nickname);
+        } else {
+          winnerKeys = [];
+          winners = [];
+        }
 
         const remaining = correctRespondents.filter(n => !winners.includes(n));
 
@@ -1540,8 +1673,14 @@
 
         // Render winners
         renderWinners();
+
+        // Undo button visibility
+        document.getElementById('undo-draw-btn').style.display = winners.length > 0 ? 'block' : 'none';
       });
     }
+
+    // Store winner keys for undo
+    let winnerKeys = [];
 
     function renderWinners() {
       const list = document.getElementById('winners-list');
@@ -1561,13 +1700,52 @@
         winners.length > 0 ? `총 ${winners.length}명 당첨` : '당첨자가 없습니다';
     }
 
+    async function startTimer() {
+      const btn = document.getElementById('start-timer-btn');
+      btn.disabled = true;
+      btn.textContent = '시작 중...';
+      try {
+        await db.ref('events/' + currentEventId + '/timer').update({
+          started: true,
+          startedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        showToast('타이머가 시작되었습니다!');
+      } catch (err) {
+        showToast('타이머 시작에 실패했습니다');
+        console.error(err);
+        btn.disabled = false;
+        btn.textContent = '▶ 타이머 시작';
+      }
+    }
+
+    async function undoLastDraw() {
+      if (winnerKeys.length === 0) return;
+      const lastKey = winnerKeys[winnerKeys.length - 1];
+      const lastName = winners[winners.length - 1];
+      try {
+        await db.ref('events/' + currentEventId + '/winners/' + lastKey).remove();
+        showToast(`"${lastName}" 당첨이 취소되었습니다`);
+        document.getElementById('draw-result-name').textContent = '버튼을 눌러 추첨하세요';
+        document.getElementById('draw-result-count').textContent = '';
+      } catch (err) {
+        showToast('취소에 실패했습니다');
+        console.error(err);
+      }
+    }
+
+    let isDrawing = false;
+
     async function drawWinner() {
+      if (isDrawing) return;
       const remaining = correctRespondents.filter(n => !winners.includes(n));
       if (remaining.length === 0) {
         showToast('추첨할 정답자가 없습니다');
         return;
       }
 
+      const drawCount = Math.min(parseInt(document.getElementById('draw-count').value), remaining.length);
+
+      isDrawing = true;
       const btn = document.getElementById('draw-btn');
       btn.disabled = true;
 
@@ -1578,37 +1756,41 @@
       resultNameEl.classList.remove('slot-animate');
       resultNameEl.classList.add('slot-shuffling');
 
-      let shuffleCount = 0;
       const shuffleInterval = setInterval(() => {
         const randomName = remaining[Math.floor(Math.random() * remaining.length)];
         resultNameEl.textContent = randomName;
-        shuffleCount++;
       }, 80);
 
-      // After animation, pick winner
+      // After animation, pick winners
       setTimeout(async () => {
         clearInterval(shuffleInterval);
         resultNameEl.classList.remove('slot-shuffling');
 
-        const winnerIndex = Math.floor(Math.random() * remaining.length);
-        const winner = remaining[winnerIndex];
+        // Pick N unique winners
+        const shuffled = [...remaining].sort(() => Math.random() - 0.5);
+        const picked = shuffled.slice(0, drawCount);
 
-        resultNameEl.textContent = winner;
+        resultNameEl.textContent = picked.join(', ');
         resultNameEl.classList.add('slot-animate');
-        resultCountEl.textContent = `${winners.length + 1}번째 당첨자`;
+        resultCountEl.textContent = drawCount === 1
+          ? `${winners.length + 1}번째 당첨자`
+          : `${winners.length + 1}~${winners.length + drawCount}번째 당첨자`;
 
         // Save to Firebase
         try {
-          await db.ref('events/' + currentEventId + '/winners').push({
-            nickname: winner,
-            drawnAt: firebase.database.ServerValue.TIMESTAMP
+          const updates = {};
+          picked.forEach(name => {
+            const key = db.ref('events/' + currentEventId + '/winners').push().key;
+            updates[key] = { nickname: name, drawnAt: firebase.database.ServerValue.TIMESTAMP };
           });
+          await db.ref('events/' + currentEventId + '/winners').update(updates);
         } catch (err) {
           showToast('저장에 실패했습니다');
           console.error(err);
         }
 
         btn.disabled = false;
+        isDrawing = false;
       }, 1500);
     }
 
@@ -1617,6 +1799,14 @@
       const div = document.createElement('div');
       div.textContent = str;
       return div.innerHTML;
+    }
+
+    async function hashPassword(pw) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(pw);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
   </script>
 </body>
