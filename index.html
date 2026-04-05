@@ -782,17 +782,12 @@
           <h2 style="margin-bottom:4px;">이벤트가 생성되었습니다!</h2>
           <p style="color:var(--text-secondary); font-size:14px; margin-bottom:20px;">아래 URL을 참여자들에게 공유하세요</p>
 
-          <div class="label" style="text-align:left;">참여자 URL</div>
+          <div class="label" style="text-align:left;">이벤트 URL</div>
           <div class="url-box">
             <span class="url-text" id="share-url"></span>
             <button class="copy-btn" onclick="copyUrl('share-url')">복사</button>
           </div>
-
-          <div class="label" style="text-align:left; margin-top:16px;">관리자 URL</div>
-          <div class="url-box">
-            <span class="url-text" id="admin-url"></span>
-            <button class="copy-btn" onclick="copyUrl('admin-url')">복사</button>
-          </div>
+          <p style="color:var(--text-secondary); font-size:13px; margin-top:12px; text-align:left;">이 URL에서 참여자와 관리자 모두 접속할 수 있습니다</p>
         </div>
       </div>
     </div>
@@ -869,29 +864,29 @@
         <h2>제출 시간이 종료되었습니다</h2>
         <p style="color:var(--text-secondary); margin-top:8px;">더 이상 답변을 제출할 수 없습니다</p>
       </div>
-    </div>
-  </div>
 
-  <!-- ===== Screen 4: Admin ===== -->
-  <div id="screen-admin" class="screen">
-    <!-- Login -->
-    <div id="admin-login-wrap" class="admin-login">
-      <div class="admin-login-box fade-in">
-        <h2>🔐 관리자 로그인</h2>
-        <div class="field">
-          <label class="field-label">닉네임</label>
-          <input type="text" id="admin-login-nickname" placeholder="관리자 닉네임">
+      <!-- Admin login (inline) -->
+      <div id="admin-login-section" style="display:none; margin-top:24px;">
+        <div class="card fade-in">
+          <div class="label">관리자 로그인</div>
+          <div class="field">
+            <label class="field-label">닉네임</label>
+            <input type="text" id="admin-login-nickname" placeholder="관리자 닉네임">
+          </div>
+          <div class="field">
+            <label class="field-label">비밀번호</label>
+            <input type="password" id="admin-login-password" placeholder="비밀번호">
+          </div>
+          <button class="btn btn-primary" onclick="adminLogin()">로그인</button>
+          <p id="admin-login-error" style="color:var(--red); font-size:13px; text-align:center; margin-top:12px; display:none;"></p>
         </div>
-        <div class="field">
-          <label class="field-label">비밀번호</label>
-          <input type="password" id="admin-login-password" placeholder="비밀번호">
-        </div>
-        <button class="btn btn-primary" onclick="adminLogin()">로그인</button>
-        <p id="admin-login-error" style="color:var(--red); font-size:13px; text-align:center; margin-top:12px; display:none;"></p>
       </div>
+
+      <!-- Admin toggle button -->
+      <button class="back-btn" id="admin-toggle-btn" onclick="toggleAdminLogin()" style="display:none; margin-top:16px; font-size:13px; color:var(--text-muted);">관리자 로그인</button>
     </div>
 
-    <!-- Dashboard -->
+    <!-- Admin Dashboard (full screen, replaces event content) -->
     <div id="admin-dashboard" style="display:none; flex-direction:column; height:100vh;">
       <div class="admin-topbar">
         <div class="admin-topbar-title">🎲 랜덤드로우 — 관리자</div>
@@ -1224,13 +1219,8 @@
           if (id) loadEvent(id);
           break;
         case 'admin':
-          document.getElementById('screen-admin').classList.add('active');
-          if (id) {
-            currentEventId = id;
-            adminAuthenticated = false;
-            document.getElementById('admin-login-wrap').style.display = 'flex';
-            document.getElementById('admin-dashboard').style.display = 'none';
-          }
+          // Redirect old admin URLs to event page
+          if (id) navigate('event/' + id);
           break;
         default:
           document.getElementById('screen-main').classList.add('active');
@@ -1355,7 +1345,6 @@
 
         const baseUrl = window.location.origin + window.location.pathname;
         document.getElementById('share-url').textContent = baseUrl + '#event/' + eventId;
-        document.getElementById('admin-url').textContent = baseUrl + '#admin/' + eventId;
 
         document.getElementById('create-form').style.display = 'none';
         document.getElementById('create-success').style.display = 'block';
@@ -1387,6 +1376,10 @@
       document.getElementById('event-form').style.display = 'none';
       document.getElementById('event-submitted').style.display = 'none';
       document.getElementById('event-expired').style.display = 'none';
+      document.getElementById('admin-login-section').style.display = 'none';
+      document.getElementById('admin-toggle-btn').style.display = 'none';
+      document.getElementById('admin-dashboard').style.display = 'none';
+      document.querySelector('#screen-event > .container').style.display = 'block';
 
       db.ref('events/' + eventId).once('value', snapshot => {
         const data = snapshot.val();
@@ -1398,6 +1391,9 @@
         }
 
         currentEventData = data;
+
+        // Show admin toggle button
+        document.getElementById('admin-toggle-btn').style.display = 'block';
 
         // Check if timer has been started
         if (!data.timer.started) {
@@ -1566,6 +1562,18 @@
     }
 
     // ===== Admin =====
+    function toggleAdminLogin() {
+      const section = document.getElementById('admin-login-section');
+      const btn = document.getElementById('admin-toggle-btn');
+      if (section.style.display === 'none') {
+        section.style.display = 'block';
+        btn.textContent = '관리자 로그인 닫기';
+      } else {
+        section.style.display = 'none';
+        btn.textContent = '관리자 로그인';
+      }
+    }
+
     async function adminLogin() {
       const nickname = document.getElementById('admin-login-nickname').value.trim();
       const password = document.getElementById('admin-login-password').value.trim();
@@ -1589,7 +1597,9 @@
         }
 
         adminAuthenticated = true;
-        document.getElementById('admin-login-wrap').style.display = 'none';
+        document.getElementById('admin-login-section').style.display = 'none';
+        document.getElementById('admin-toggle-btn').style.display = 'none';
+        document.querySelector('#screen-event > .container').style.display = 'none';
         document.getElementById('admin-dashboard').style.display = 'flex';
         document.getElementById('admin-display-name').textContent = nickname;
 
